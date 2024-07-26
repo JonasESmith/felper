@@ -30,6 +30,7 @@ use clap::{Arg, Command};
 use std::fs;
 use std::io::prelude::*;
 use std::path::Path;
+use std::process::Command as comp_Command;
 
 fn main() {
     let matches = Command::new("felper")
@@ -67,6 +68,43 @@ fn main() {
                 eprintln!("Error creating bloc directory: {}", e);
                 return;
             }
+
+            // Run Mason commands
+            if let Err(e) = run_mason_command(&bloc_path, &["init"]) {
+                eprintln!("Error initializing Mason: {}", e);
+                return;
+            }
+             if let Err(e) = run_mason_command(&bloc_path, &["add", "bloc"]) {
+                eprintln!("Error adding bloc brick: {}", e);
+                return;
+            }
+
+            if let Err(e) = run_mason_command(&bloc_path, &["make", "bloc", // 
+                "--name", file_name, "--style", "freezed"]) 
+            {
+                eprintln!("Error making bloc: {}", e);
+                return;
+            }
+
+            // List contents of the main directory
+            let ls_output = comp_Command::new("ls")
+                .arg(file_name)
+                .output()
+                .expect("failed to execute ls");
+
+            println!("Contents of {}: {}", file_name, String::from_utf8_lossy(&ls_output.stdout));
+
+
+            // comp_Command::new(format!("cd /{}/bloc", file_name)) //
+            //    .output().expect("/bloc doesn't exist");
+            // comp_Command::new("cd ..") //
+            //   .output().expect("cannot navigate back");
+            // we now need to do something wtih mason.... we need to first attempt
+            // to install it for the user, then we need to run the command
+            // ~ mason init
+            // ~ mason add bloc
+            // ...
+            // ~ mason make bloc --name bloc --type bloc --style freezed
 
             // Create and populate bloc.dart file
             let bloc_file_path = bloc_path.join("bloc.dart");
@@ -109,3 +147,21 @@ fn main() {
         _ => unreachable!("Exhausted list of subcommands and subcommand_required prevents `None`"),
     }
 }
+
+
+
+fn run_mason_command(dir: &Path, args: &[&str]) -> Result<(), std::io::Error> {
+    let output = comp_Command::new("mason")
+        .current_dir(dir)
+        .args(args)
+        .output()?;
+
+    if output.status.success() {
+        println!("Mason command succeeded: {}", String::from_utf8_lossy(&output.stdout));
+    } else {
+        eprintln!("Mason command failed: {}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    Ok(())
+}
+
