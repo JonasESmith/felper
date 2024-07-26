@@ -30,7 +30,8 @@ use clap::{Arg, Command};
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::Command as comp_Command;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
+use colored::Colorize;
 
 
 fn main() {
@@ -146,8 +147,8 @@ fn run_mason_command(dir: &Path, args: &[&str]) -> Result<(), std::io::Error> {
     Ok(())
 }
 
+    
 fn create_file_if_not_exists(path: &Path, content: &str) -> io::Result<()> {
-    println!("Attempting to create file: {:?}", path);
 
     let mut file = OpenOptions::new()
         .write(true)
@@ -156,9 +157,9 @@ fn create_file_if_not_exists(path: &Path, content: &str) -> io::Result<()> {
 
     match file {
         Ok(ref mut f) => {
-            println!("File created successfully. Writing content...");
+            let file_path = format!("{:?}", path);
             f.write_all(content.as_bytes())?;
-            println!("Content written successfully.");
+            println!("file : {} created and written to", file_path.green());
         }
         Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => {
             println!("File already exists: {:?}", path);
