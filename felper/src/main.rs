@@ -27,10 +27,11 @@
 //! ## Notes
 //! Wanting to create a simple enough system for speeding up development time.
 use clap::{Arg, Command};
-use std::fs;
-use std::io::prelude::*;
+use std::io::{self, Write};
 use std::path::Path;
 use std::process::Command as comp_Command;
+use std::fs::{self, File, OpenOptions};
+
 
 fn main() {
     let matches = Command::new("felper")
@@ -56,11 +57,12 @@ fn main() {
                 .expect("required");
             println!("Creating modular file: {}", file_name);
 
-            // Create main directory
-            if let Err(e) = fs::create_dir(file_name) {
+             // Create main directory
+            let main_path = Path::new(file_name);
+            if let Err(e) = fs::create_dir_all(main_path) {
                 eprintln!("Error creating main directory: {}", e);
                 return;
-            }
+            }            
 
             // Create bloc folder
             let bloc_path = Path::new(file_name).join("bloc");
@@ -79,7 +81,7 @@ fn main() {
                 return;
             }
 
-            if let Err(e) = run_mason_command(&bloc_path, &["make", "bloc", // 
+            if let Err(e) = run_mason_command(&bloc_path, &["make", "bloc", //
                 "--name", file_name, "--style", "freezed"]) 
             {
                 eprintln!("Error making bloc: {}", e);
@@ -94,46 +96,25 @@ fn main() {
 
             println!("Contents of {}: {}", file_name, String::from_utf8_lossy(&ls_output.stdout));
 
-
-            // comp_Command::new(format!("cd /{}/bloc", file_name)) //
-            //    .output().expect("/bloc doesn't exist");
-            // comp_Command::new("cd ..") //
-            //   .output().expect("cannot navigate back");
-            // we now need to do something wtih mason.... we need to first attempt
-            // to install it for the user, then we need to run the command
-            // ~ mason init
-            // ~ mason add bloc
-            // ...
-            // ~ mason make bloc --name bloc --type bloc --style freezed
-
-            // Create and populate bloc.dart file
-            let bloc_file_path = bloc_path.join("bloc.dart");
-            match fs::File::create_new(&bloc_file_path) {
-                 Ok(mut file) => {
-                    if let Err(e) = file.write_all("/// export \"your_widget.dart\";".as_bytes()) {
-                        eprintln!("Error writing to bloc.dart: {}", e);
-                    }
-                },
-                Err(e) => eprintln!("Error creating bloc.dart: {}", e),
-            }
-
-            // Create widgets folder
             let widgets_path = Path::new(file_name).join("widgets");
             if let Err(e) = fs::create_dir(&widgets_path) {
                 eprintln!("Error creating widgets directory: {}", e);
                 return;
             }
 
-            // Create widgets.dart file
-            let widgets_file_path = widgets_path.join("widgets.dart");
-            match fs::File::create_new(&widgets_file_path) {
+         // Create widgets.dart file
+            let widgets_file_path = main_path.join("widgets").join("widgets.dart");
+            if let Err(e) = create_file_if_not_exists(&widgets_file_path, "/// export \"your_widget.dart\";") {
+                eprintln!("Error creating widgets.dart: {}", e);
+                return;
+            }
 
-                 Ok(mut file) => {
-                    if let Err(e) = file.write_all("/// export \"your_widget.dart\";".as_bytes()) {
-                        eprintln!("Error writing to bloc.dart: {}", e);
-                    }
-                },
-                Err(e) => eprintln!("Error creating bloc.dart: {}", e),
+            // Create and populate {file_name}.dart file
+            let export_file_path = main_path.join(format!("{}.dart", file_name));
+            let export_content = format!("export \"bloc/{}_bloc.dart\";", file_name);
+            if let Err(e) = create_file_if_not_exists(&export_file_path, &export_content) {
+                eprintln!("Error creating {}.dart: {}", file_name, e);
+                return;
             }
 
             println!("Modular structure created successfully!");
@@ -165,3 +146,32 @@ fn run_mason_command(dir: &Path, args: &[&str]) -> Result<(), std::io::Error> {
     Ok(())
 }
 
+fn create_file_if_not_exists(path: &Path, content: &str) -> io::Result<()> {
+    println!("Attempting to create file: {:?}", path);
+
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path);
+
+    match file {
+        Ok(ref mut f) => {
+            println!("File created successfully. Writing content...");
+            f.write_all(content.as_bytes())?;
+            println!("Content written successfully.");
+        }
+        Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => {
+            println!("File already exists: {:?}", path);
+            // If you want to update existing file, uncomment the following lines:
+            // file = OpenOptions::new().write(true).open(path);
+            // file?.write_all(content.as_bytes())?;
+            // println!("Existing file updated with new content.");
+        }
+        Err(e) => {
+            eprintln!("Error creating file: {:?}", e);
+            return Err(e);
+        }
+    }
+
+    Ok(())
+}
