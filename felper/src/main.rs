@@ -27,10 +27,10 @@
 //! ## Notes
 //! Wanting to create a simple enough system for speeding up development time.
 use clap::{Arg, Command};
-use std::io::{self, Write, BufRead, BufReader};
+use std::io::{self, Write, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command as comp_Command;
-use std::fs::{self, OpenOptions};
+use std::fs::{self,File, OpenOptions};
 use colored::Colorize;
 extern crate dirs;
 
@@ -322,58 +322,29 @@ fn run_build_runner(main_path: &Path) -> io::Result<()> {
     }
 }
 
-fn check_and_augment_parent_file(file_name: &str) -> io::Result<()> {
-    let current_dir = std::env::current_dir()?;
+fn check_and_augment_parent_file(inserted_file_name: &str) -> io::Result<()> {
+ let current_dir = std::env::current_dir()?;
     
-
     let last_path = get_last_path(&current_dir);
-
     println!("current_folder : {}", last_path.red());
 
+    let target_file = format!("{}.dart", last_path);
     let paths = fs::read_dir(&current_dir)?;
+
     for path_result in paths {
         match path_result {
             Ok(entry) => {
-                let file_path = get_last_path(&entry.path());
-                println!("Name: {}", file_path);
+                let file_path = entry.path();
+                let file_name = get_last_path(&file_path);
+                println!("Name: {}", file_name);
+
+                if file_name == target_file {
+                    println!("Found matching file: {}", file_name);
+                    add_export_to_file(&file_path, &inserted_file_name)?;
+                }
             },
             Err(e) => eprintln!("Error reading entry: {}", e),
         }
-    }
-
-
-
-    // lets get our file name of our current_dir
-    // let current_file = ...
-
-    let parent_dir = current_dir.parent().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::NotFound, "Parent directory not found")
-    })?;
-    let parent_file_name = parent_dir.file_name().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::NotFound, "Parent directory name not found")
-    })?;
-    let parent_file_path = parent_dir.join(format!("{}.dart", parent_file_name.to_str().unwrap()));
-
-    if parent_file_path.exists() {
-        println!("Parent file found: {:?}", parent_file_path);
-        
-        // Read the contents of the file
-        let file = OpenOptions::new().read(true).open(&parent_file_path)?;
-        let reader = BufReader::new(file);
-        let lines: Vec<String> = reader.lines().collect::<Result<_, _>>()?;
-
-        // Check if the export line already exists
-        let export_line = format!("export '{}/{}';", file_name, file_name);
-        if !lines.iter().any(|line| line.trim() == export_line) {
-            // If it doesn't exist, append it to the file
-            let mut file = OpenOptions::new().append(true).open(&parent_file_path)?;
-            writeln!(file, "{}", export_line)?;
-            println!("Added export line to parent file: {}", export_line);
-        } else {
-            println!("Export line already exists in parent file");
-        }
-    } else {
-        println!("Parent file not found: {:?}", parent_file_path);
     }
 
     Ok(())
@@ -389,4 +360,20 @@ fn get_last_path(dir : &PathBuf) -> String {
 
     
     "".to_string()
+}
+
+fn add_export_to_file(file_path: &Path, file_name: &str) -> std::io::Result<()> {
+    let mut content = String::new();
+    let mut file = File::open(file_path)?;
+    file.read_to_string(&mut content)?;  // Changed from read_to_end to read_to_string
+    let export_statement = format!("export '{0}/{0}.dart';\n", file_name);
+    if !content.starts_with(&export_statement) {
+        let new_content = format!("{}{}", export_statement, content);
+        let mut file = File::create(file_path)?;
+        file.write_all(new_content.as_bytes())?;
+        println!("Added export statement to {}", file_name);
+    } else {
+        println!("Export statement already exists in {}", file_name);
+    }
+    Ok(())
 }
