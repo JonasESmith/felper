@@ -88,8 +88,14 @@ fn main() {
 
             // Create widgets.dart file
             let widgets_file_path = widgets_path.join("widgets.dart");
-            if let Err(e) = fs::File::create(&widgets_file_path) {
-                eprintln!("Error creating widgets.dart: {}", e);
+            match fs::File::create_new(&widgets_file_path) {
+
+                 Ok(mut file) => {
+                    if let Err(e) = file.write_all("/// export \"your_widget.dart\";".as_bytes()) {
+                        eprintln!("Error writing to bloc.dart: {}", e);
+                    }
+                },
+                Err(e) => eprintln!("Error creating bloc.dart: {}", e),
             }
 
             println!("Modular structure created successfully!");
