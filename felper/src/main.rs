@@ -27,15 +27,14 @@
 //! ## Notes
 //! Wanting to create a simple enough system for speeding up development time.
 use clap::{Arg, Command};
-use std::io::{self, Write, Read};
+use colored::Colorize;
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command as comp_Command;
-use std::fs::{self,File, OpenOptions};
-use colored::Colorize;
 extern crate dirs;
 
- fn main() -> io::Result<()> {  
-
+fn main() -> io::Result<()> {
     let matches = Command::new("felper")
         .version("1.0")
         .author("Jonas Smith")
@@ -59,12 +58,12 @@ extern crate dirs;
                 .expect("required");
             println!("Creating modular file: {}", file_name);
 
-             // Create main directory
+            // Create main directory
             let main_path = Path::new(file_name);
             if let Err(e) = fs::create_dir_all(main_path) {
                 eprintln!("Error creating main directory: {}", e);
                 return Err(e);
-            }            
+            }
 
             // Create bloc folder
             let bloc_path = Path::new(file_name).join("bloc");
@@ -76,18 +75,22 @@ extern crate dirs;
             // Run Mason commands
             if let Err(e) = run_mason_command(&bloc_path, &["init"]) {
                 eprintln!("Error initializing Mason: {}", e);
-                  return Err(e);
+                return Err(e);
             }
-             if let Err(e) = run_mason_command(&bloc_path, &["add", "bloc"]) {
+            if let Err(e) = run_mason_command(&bloc_path, &["add", "bloc"]) {
                 eprintln!("Error adding bloc brick: {}", e);
-             return Err(e);
+                return Err(e);
             }
 
-            if let Err(e) = run_mason_command(&bloc_path, &["make", "bloc", //
-                "--name", file_name, "--style", "freezed"]) 
-            {
+            if let Err(e) = run_mason_command(
+                &bloc_path,
+                &[
+                    "make", "bloc", //
+                    "--name", file_name, "--style", "freezed",
+                ],
+            ) {
                 eprintln!("Error making bloc: {}", e);
-                  return Err(e);
+                return Err(e);
             }
 
             // List contents of the main directory
@@ -96,7 +99,11 @@ extern crate dirs;
                 .output()
                 .expect("failed to execute ls");
 
-            println!("Contents of {}: {}", file_name, String::from_utf8_lossy(&ls_output.stdout));
+            println!(
+                "Contents of {}: {}",
+                file_name,
+                String::from_utf8_lossy(&ls_output.stdout)
+            );
 
             let widgets_path = Path::new(file_name).join("widgets");
             if let Err(e) = fs::create_dir(&widgets_path) {
@@ -107,9 +114,9 @@ extern crate dirs;
             // Create widgets.dart file
             let widgets_file_path = main_path.join("widgets").join("widgets.dart");
             if let Err(e) = create_file_if_not_exists(
-                                &widgets_file_path, // 
-                                "/// export \"your_widget.dart\";"
-                            ) {
+                &widgets_file_path, //
+                "/// export \"your_widget.dart\";",
+            ) {
                 eprintln!("Error creating widgets.dart: {}", e);
                 return Err(e);
             }
@@ -122,7 +129,7 @@ extern crate dirs;
                 return Err(e);
             }
 
-            // create the module file 
+            // create the module file
             let module_file_path = main_path.join(format!("{}_module.dart", file_name));
             let module_content = generate_module_content(file_name);
             if let Err(e) = create_file_if_not_exists(&module_file_path, &module_content) {
@@ -132,8 +139,8 @@ extern crate dirs;
 
             // Create and populate {file_name}.dart file
             let export_file_path = main_path.join(format!("{}.dart", file_name));
-               // Option 1: Using a vector of strings
-             // Option 2: Using a multi-line string literal
+            // Option 1: Using a vector of strings
+            // Option 2: Using a multi-line string literal
             let export_content = format!(
                 r#"export 'bloc/{0}_bloc.dart';
                 export 'widgets/widgets.dart';
@@ -156,7 +163,6 @@ extern crate dirs;
                 // Note: We're not returning here, as this is not a critical error
             }
 
-            
             // Run build_runner
             if let Err(e) = run_build_runner(&main_path) {
                 eprintln!("Error running build_runner: {}", e);
@@ -177,8 +183,6 @@ extern crate dirs;
     Ok(())
 }
 
-
-
 fn run_mason_command(dir: &Path, args: &[&str]) -> Result<(), std::io::Error> {
     let output = comp_Command::new("mason")
         .current_dir(dir)
@@ -186,21 +190,22 @@ fn run_mason_command(dir: &Path, args: &[&str]) -> Result<(), std::io::Error> {
         .output()?;
 
     if output.status.success() {
-        println!("Mason command succeeded: {}", String::from_utf8_lossy(&output.stdout));
+        println!(
+            "Mason command succeeded: {}",
+            String::from_utf8_lossy(&output.stdout)
+        );
     } else {
-        eprintln!("Mason command failed: {}", String::from_utf8_lossy(&output.stderr));
+        eprintln!(
+            "Mason command failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     Ok(())
 }
 
-    
 fn create_file_if_not_exists(path: &Path, content: &str) -> io::Result<()> {
-
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path);
+    let mut file = OpenOptions::new().write(true).create_new(true).open(path);
 
     match file {
         Ok(ref mut f) => {
@@ -299,7 +304,7 @@ class {3} extends Module {{
 
 fn run_build_runner(main_path: &Path) -> io::Result<()> {
     println!("Running build_runner...");
-    
+
     let output = comp_Command::new("flutter")
         .current_dir(main_path)
         .args(&[
@@ -307,7 +312,7 @@ fn run_build_runner(main_path: &Path) -> io::Result<()> {
             "run",
             "build_runner",
             "build",
-            "--delete-conflicting-outputs"
+            "--delete-conflicting-outputs",
         ])
         .output()?;
 
@@ -323,10 +328,9 @@ fn run_build_runner(main_path: &Path) -> io::Result<()> {
 }
 
 fn check_and_augment_parent_file(inserted_file_name: &str) -> io::Result<()> {
- let current_dir = std::env::current_dir()?;
-    
+    let current_dir = std::env::current_dir()?;
+
     let last_path = get_last_path(&current_dir);
-    println!("current_folder : {}", last_path.red());
 
     let target_file = format!("{}.dart", last_path);
     let paths = fs::read_dir(&current_dir)?;
@@ -336,13 +340,11 @@ fn check_and_augment_parent_file(inserted_file_name: &str) -> io::Result<()> {
             Ok(entry) => {
                 let file_path = entry.path();
                 let file_name = get_last_path(&file_path);
-                println!("Name: {}", file_name);
 
                 if file_name == target_file {
-                    println!("Found matching file: {}", file_name);
                     add_export_to_file(&file_path, &inserted_file_name)?;
                 }
-            },
+            }
             Err(e) => eprintln!("Error reading entry: {}", e),
         }
     }
@@ -350,22 +352,21 @@ fn check_and_augment_parent_file(inserted_file_name: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn get_last_path(dir : &PathBuf) -> String {
+fn get_last_path(dir: &PathBuf) -> String {
     let path_string = dir.to_string_lossy().into_owned();
     let components: Vec<_> = path_string.split('/').collect();
-    
+
     if let Some(last_component) = components.last() {
         return last_component.to_string();
-    } 
+    }
 
-    
     "".to_string()
 }
 
 fn add_export_to_file(file_path: &Path, file_name: &str) -> std::io::Result<()> {
     let mut content = String::new();
     let mut file = File::open(file_path)?;
-    file.read_to_string(&mut content)?;  // Changed from read_to_end to read_to_string
+    file.read_to_string(&mut content)?; // Changed from read_to_end to read_to_string
     let export_statement = format!("export '{0}/{0}.dart';\n", file_name);
     if !content.starts_with(&export_statement) {
         let new_content = format!("{}{}", export_statement, content);
