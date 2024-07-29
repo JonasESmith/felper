@@ -33,8 +33,12 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command as comp_Command;
 extern crate dirs;
+mod error;
+mod prelude;
+use crate::error::Error;
+use crate::prelude::*;
 
-fn main() -> io::Result<()> {
+fn main() -> Result<()> {
     let matches = Command::new("felper")
         .version("1.0")
         .author("Jonas Smith")
@@ -62,14 +66,14 @@ fn main() -> io::Result<()> {
             let main_path = Path::new(file_name);
             if let Err(e) = fs::create_dir_all(main_path) {
                 eprintln!("Error creating main directory: {}", e);
-                return Err(e);
+                return Err(Error::IO(e));
             }
 
             // Create bloc folder
             let bloc_path = Path::new(file_name).join("bloc");
             if let Err(e) = fs::create_dir(&bloc_path) {
                 eprintln!("Error creating bloc directory: {}", e);
-                return Err(e);
+                return Err(Error::IO(e));
             }
 
             // Run Mason commands
@@ -108,7 +112,7 @@ fn main() -> io::Result<()> {
             let widgets_path = Path::new(file_name).join("widgets");
             if let Err(e) = fs::create_dir(&widgets_path) {
                 eprintln!("Error creating widgets directory: {}", e);
-                return Err(e);
+                return Err(Error::IO(e));
             }
 
             // Create widgets.dart file
@@ -118,7 +122,7 @@ fn main() -> io::Result<()> {
                 "/// export \"your_widget.dart\";",
             ) {
                 eprintln!("Error creating widgets.dart: {}", e);
-                return Err(e);
+                return Err(Error::IO(e));
             }
 
             // Create the custom page file
@@ -126,7 +130,7 @@ fn main() -> io::Result<()> {
             let page_content = generate_page_content(file_name);
             if let Err(e) = create_file_if_not_exists(&page_file_path, &page_content) {
                 eprintln!("Error creating {}_page.dart: {}", file_name, e);
-                return Err(e);
+                return Err(Error::IO(e));
             }
 
             // create the module file
@@ -134,7 +138,7 @@ fn main() -> io::Result<()> {
             let module_content = generate_module_content(file_name);
             if let Err(e) = create_file_if_not_exists(&module_file_path, &module_content) {
                 eprintln!("Error creating {}_module.dart: {}", file_name, e);
-                return Err(e);
+                return Err(Error::IO(e));
             }
 
             // Create and populate {file_name}.dart file
@@ -152,7 +156,7 @@ fn main() -> io::Result<()> {
             );
             if let Err(e) = create_file_if_not_exists(&export_file_path, &export_content) {
                 eprintln!("Error creating {}.dart: {}", file_name, e);
-                return Err(e);
+                return Err(Error::IO(e));
             }
 
             println!("Modular structure created successfully!");
@@ -160,13 +164,11 @@ fn main() -> io::Result<()> {
             // Check and augment parent file
             if let Err(e) = check_and_augment_parent_file(file_name) {
                 eprintln!("Error checking/augmenting parent file: {}", e);
-                // Note: We're not returning here, as this is not a critical error
             }
 
             // Run build_runner
             if let Err(e) = run_build_runner(&main_path) {
-                eprintln!("Error running build_runner: {}", e);
-                return Err(e);
+                return Err(Error::BuildRunnerError(e.to_string()));
             }
 
             println!("Modular structure and build process completed successfully!");
@@ -183,7 +185,7 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn run_mason_command(dir: &Path, args: &[&str]) -> Result<(), std::io::Error> {
+fn run_mason_command(dir: &Path, args: &[&str]) -> Result<()> {
     let output = comp_Command::new("mason")
         .current_dir(dir)
         .args(args)
@@ -194,14 +196,12 @@ fn run_mason_command(dir: &Path, args: &[&str]) -> Result<(), std::io::Error> {
             "Mason command succeeded: {}",
             String::from_utf8_lossy(&output.stdout)
         );
+        Ok(())
     } else {
-        eprintln!(
-            "Mason command failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+        Err(Error::MasonError(
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        ))
     }
-
-    Ok(())
 }
 
 fn create_file_if_not_exists(path: &Path, content: &str) -> io::Result<()> {
