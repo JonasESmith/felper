@@ -14,8 +14,8 @@ pub enum Error {
     /// let error = Error::Generic("Something went wrong".to_string());
     /// assert_eq!(error.to_string(), "GenericSomething went wrong");
     /// ```
-    #[error("Generic{0}")]
-    Generic(String),
+    // #[error("Generic{0}")]
+    // Generic(String),
 
     /// Represents an I/O error.
     ///

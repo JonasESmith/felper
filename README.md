@@ -1,32 +1,65 @@
-# felper
-a rust console application to make certain tasks much faster! :)
+# Felper
 
-# Features
+Felper is a command-line tool designed to streamline Flutter development workflows by automating the creation of modular file structures and running common tasks.
 
-> Create flutter_modular file structure
+## Features
 
-``` bash
-felper modular /{file_name}
+- Create modular file structures for Flutter projects
+- Generate BLoC files
+- Create widget files
+- Run build_runner automatically
 
+## Installation
+
+To install Felper, you need to have Rust and Cargo installed on your system. If you don't have them, you can install them from [rustup.rs](https://rustup.rs/).
+
+Once you have Rust and Cargo installed, clone this repository and run:
+
+```bash
+cargo install --path .
 ```
 
-What does this do? This will create a folder of file_name, and create the bellow structure
+This will install Felper on your system.
 
-```
-- /file_name
-    - /core
-        - /bloc
-            file_name_bloc.dart
-            ... 
-        - /widgets
-            - widgets.dart
-        - core.dart
-    - file_name_module.dart
-    - file_name_page.dart 
-    - file_name.dart 
+## Usage
+
+Here are some example commands:
+
+### Create a modular file structure
+
+```bash
+felper modular my_feature
 ```
 
-# Future 
+### Create a modular file structure with BLoC files
 
-Want to create a simple way of create new flutter projects with a more standardized system for mvvm.
+```bash
+felper modular my_feature --widgets
+```
 
+### List available commands
+
+```bash
+felper --help
+```
+
+## Dependencies
+
+Felper requires the following tools to be installed and available in your PATH:
+
+- Flutter
+- Mason CLI
+
+Make sure these are installed and properly configured before using Felper.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+[MIT License](LICENSE)
+
+## Author
+
+Jonas Smith
