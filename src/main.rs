@@ -125,17 +125,12 @@ fn main() -> Result<()> {
 
             // Create and populate {file_name}.dart file
             let export_file_path = main_path.join(format!("{}.dart", file_name));
-            // Option 1: Using a vector of strings
-            // Option 2: Using a multi-line string literal
-            let export_content = format!(
-                r#"export 'bloc/{0}_bloc.dart';
-                export 'widgets/widgets.dart';
-                export '{0}_page.dart';
-                export '{0}_module.dart';
-                // Add more export lines as needed
-                "#,
-                file_name
+            let export_content = generate_export_page(
+                &file_name, //
+                include_bloc_tag,
+                include_widgets_tag,
             );
+
             if let Err(e) = create_file_if_not_exists(&export_file_path, &export_content) {
                 eprintln!("Error creating {}.dart: {}", file_name, e);
                 return Err(Error::IO(e));
@@ -239,8 +234,8 @@ class {0} extends StatelessWidget {{
   @override
   Widget build(BuildContext context) {{
     return const Scaffold(
-      body: Text(`
-        routeName,
+      body: Text(
+        '{1} Page',
       ),
     );
   }}
@@ -508,4 +503,23 @@ mod tests {
             .join(format!("{}.dart", file_name))
             .exists());
     }
+}
+
+fn generate_export_page(file_name: &str, include_bloc: bool, include_widgets: bool) -> String {
+    let mut exports = vec![
+        format!("export '{0}_page.dart';", file_name),
+        format!("export '{0}_module.dart';", file_name),
+    ];
+
+    if include_bloc {
+        exports.push(format!("export 'bloc/{0}_bloc.dart';", file_name));
+    }
+
+    if include_widgets {
+        exports.push("export 'widgets/widgets.dart';".to_string());
+    }
+
+    let exports_str = exports.join("\n");
+
+    exports_str
 }
