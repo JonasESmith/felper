@@ -73,6 +73,9 @@ fn main() -> Result<()> {
                 ),
         )
         .subcommand(Command::new("list").about("List available commands"))
+        .subcommand(
+            Command::new("build").about("Run build commands (build_runner, clean, pub get)"),
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -160,6 +163,13 @@ fn main() -> Result<()> {
         }
         Some(("list", _)) => {
             print_available_commands();
+        }
+        Some(("build", _)) => {
+            if let Err(e) = run_build_commands() {
+                eprintln!("Error running build commands: {}", e);
+                return Err(e);
+            }
+            println!("Build commands completed successfully!");
         }
         _ => unreachable!("Exhausted list of subcommands and subcommand_required prevents `None`"),
     }
@@ -394,6 +404,7 @@ fn print_available_commands() {
     println!("    --bloc      Include bloc files");
     println!("    --widgets   Include widgets files");
     println!("    --run       Run build_runner after creating files");
+    println!("  build                                               Run build commands (build_runner, clean, pub get)");
     println!("  list                                                List available commands");
     println!("  help                                                Print help information");
 }
@@ -503,6 +514,13 @@ mod tests {
             .join(format!("{}.dart", file_name))
             .exists());
     }
+
+    #[test]
+    fn test_build_command() {
+        let mut cmd = Command::cargo_bin("felper").unwrap();
+        cmd.arg("build");
+        cmd.assert().success();
+    }
 }
 
 fn generate_export_page(file_name: &str, include_bloc: bool, include_widgets: bool) -> String {
@@ -522,4 +540,49 @@ fn generate_export_page(file_name: &str, include_bloc: bool, include_widgets: bo
     let exports_str = exports.join("\n");
 
     exports_str
+}
+
+fn run_build_commands() -> Result<()> {
+    println!("Running build commands...");
+
+    // Run build_runner
+    let output = comp_Command::new("dart")
+        .args(&[
+            "run",
+            "build_runner",
+            "build",
+            "--delete-conflicting-outputs",
+        ])
+        .output()?;
+
+    if !output.status.success() {
+        return Err(Error::BuildRunnerError(
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        ));
+    }
+    println!("{}", "build_runner completed successfully.".green());
+
+    // Run flutter clean
+    let output = comp_Command::new("flutter").arg("clean").output()?;
+
+    if !output.status.success() {
+        return Err(Error::BuildRunnerError(
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        ));
+    }
+    println!("{}", "flutter clean completed successfully.".green());
+
+    // Run flutter pub get
+    let output = comp_Command::new("flutter")
+        .args(&["pub", "get"])
+        .output()?;
+
+    if !output.status.success() {
+        return Err(Error::BuildRunnerError(
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        ));
+    }
+    println!("{}", "flutter pub get completed successfully.".green());
+
+    Ok(())
 }
